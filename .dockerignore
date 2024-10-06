@@ -21,3 +21,9 @@ out
 gen
 
 .git
+
+.env
+tests/
+Dockerfile
+scripts/
+migrations/
