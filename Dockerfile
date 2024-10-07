@@ -1,13 +1,24 @@
-FROM rust:latest AS builder
-
+FROM lukemathwalker/cargo-chef AS chef
 WORKDIR /app
 RUN apt update && apt install lld clang -y
+
+FROM chef AS planner
+COPY . .
+# Compute a lock-like file for our project
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build our project dependencies, not our application!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Up to this point, if our dependency tree stays the same,
+# all layers should be cached.
 COPY . .
 ENV SQLX_OFFLINE true
-RUN cargo build --release
+# Build our project
+RUN cargo build --release --bin zero2prod
 
 FROM debian:bookworm-slim AS runtime
-
 WORKDIR /app
 # Install OpenSSL - it is dynamically linked by some of our dependencies
 # Install ca-certificates - it is needed to verify TLS certificates
