@@ -5,7 +5,11 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      POSTGRES_HOST: db
+      APP_DATABASE__USERNAME: postgres
+      APP_DATABASE__PASSWORD: password
+      APP_DATABASE__HOST: db
+      APP_DATABASE__PORT: 5432
+      APP_DATABASE__DATABASE_NAME: newsletter
     depends_on:
       - db
   db:
