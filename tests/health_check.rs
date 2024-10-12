@@ -108,7 +108,6 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
         ("name=le%20guin", "missing the email"),
         ("email=ursula_le_guin%40gmail.com", "missing the name"),
         ("", "missing both name and email"),
-        ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
     ];
 
     for (invalid_body, error_message) in test_cases {
@@ -130,10 +129,11 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
 }
 
 #[tokio::test]
-async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
+async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
     let address = spawn_app().await.address;
     let client = reqwest::Client::new();
     let test_cases = vec![
+        ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
         ("name=Ursula&email=", "empty email"),
         ("name=Ursula&email=definitely-not-an-email", "invalid email"),
     ];
@@ -148,9 +148,9 @@ async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
             .expect("Failed to execute request.");
 
         assert_eq!(
-            200,
+            400,
             response.status().as_u16(),
-            "The API did not return 200 OK when the payload was {}.",
+            "The API did not fail with 400 Bad Request when the payload was {}.",
             error_message
         );
     }
