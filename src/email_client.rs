@@ -1,9 +1,11 @@
 use reqwest::Client;
 
 use crate::domain::SubscriberEmail;
+use crate::email_client::sendgrid::{Content, MailSendRequest, Personalization, Subscriber};
 
 pub struct EmailClient {
     http_client: Client,
+    // TODO use reqwest::Url instead of String
     base_url: String,
     sender: SubscriberEmail,
 }
@@ -23,7 +25,67 @@ impl EmailClient {
         html_content: &str,
         text_content: &str,
     ) -> Result<(), String> {
+        let url = format!("{}/v3/mail/send", self.base_url);
+        let request_body = MailSendRequest {
+            personalizations: vec![Personalization {
+                to: vec![Subscriber {
+                    email: recipient.as_ref().to_owned(),
+                    // TODO use SubscriberName
+                    name: recipient.as_ref().to_owned(),
+                }],
+                subject: subject.to_string(),
+            }],
+            content: vec![
+                Content {
+                    r#type: "text/plain".to_string(),
+                    value: text_content.to_string(),
+                },
+                Content {
+                    r#type: "text/html".to_string(),
+                    value: html_content.to_string(),
+                },
+            ],
+            from: Subscriber {
+                email: self.sender.as_ref().to_owned(),
+                name: "zero2prod".to_string(),
+            },
+            reply_to: Subscriber {
+                email: self.sender.as_ref().to_owned(),
+                name: "zero2prod".to_string(),
+            },
+        };
+        let builder = self.http_client.post(&url).json(&request_body);
         Ok(())
+    }
+}
+
+mod sendgrid {
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    pub struct MailSendRequest {
+        pub personalizations: Vec<Personalization>,
+        pub content: Vec<Content>,
+        pub from: Subscriber,
+        pub reply_to: Subscriber,
+    }
+
+    #[derive(Serialize)]
+    pub struct Personalization {
+        pub to: Vec<Subscriber>,
+        pub subject: String,
+    }
+
+    #[derive(Serialize)]
+    pub struct Subscriber {
+        pub email: String,
+        pub name: String,
+    }
+
+    #[derive(Serialize)]
+    pub struct Content {
+        pub r#type: String,
+        pub value: String,
     }
 }
 
@@ -33,7 +95,7 @@ mod tests {
     use crate::email_client::EmailClient;
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
-    use fake::{Fake, Faker};
+    use fake::Fake;
     use wiremock::matchers::any;
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
