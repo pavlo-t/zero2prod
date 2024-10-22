@@ -1,7 +1,7 @@
 use reqwest::Client;
 use secrecy::{ExposeSecret, Secret};
 
-use crate::domain::SubscriberEmail;
+use crate::domain::{NewSubscriber, SubscriberEmail};
 use crate::email_client::sendgrid::{Content, MailSendRequest, Personalization, Subscriber};
 
 pub struct EmailClient {
@@ -27,18 +27,17 @@ impl EmailClient {
     }
     pub async fn send_email(
         &self,
-        recipient: SubscriberEmail,
+        new_subscriber: NewSubscriber,
         subject: &str,
         html_content: &str,
         text_content: &str,
-    ) -> Result<(), String> {
+    ) -> Result<(), reqwest::Error> {
         let url = format!("{}/v3/mail/send", self.base_url);
         let request_body = MailSendRequest {
             personalizations: vec![Personalization {
                 to: vec![Subscriber {
-                    email: recipient.as_ref().to_owned(),
-                    // TODO use SubscriberName
-                    name: recipient.as_ref().to_owned(),
+                    email: new_subscriber.email.as_ref().to_owned(),
+                    name: new_subscriber.name.as_ref().to_owned(),
                 }],
                 subject: subject.to_string(),
             }],
@@ -61,14 +60,15 @@ impl EmailClient {
                 name: "zero2prod".to_string(),
             },
         };
-        let builder = self
-            .http_client
+        self.http_client
             .post(&url)
             .header(
                 "Authorization",
                 "Bearer ".to_string() + self.authorization_token.expose_secret(),
             )
-            .json(&request_body);
+            .json(&request_body)
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -105,10 +105,11 @@ mod sendgrid {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::SubscriberEmail;
+    use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
     use crate::email_client::EmailClient;
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
+    use fake::faker::name::en::Name;
     use fake::{Fake, Faker};
     use secrecy::Secret;
     use wiremock::matchers::any;
@@ -126,12 +127,14 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let name = SubscriberName::parse(Name().fake()).unwrap();
+        let new_subscriber = NewSubscriber { email, name };
         let subject: String = Sentence(1..2).fake();
         let content: String = Paragraph(1..10).fake();
 
         let _ = email_client
-            .send_email(subscriber_email, &subject, &content, &content)
+            .send_email(new_subscriber, &subject, &content, &content)
             .await;
     }
 }
