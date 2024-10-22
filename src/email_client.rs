@@ -1,4 +1,5 @@
 use reqwest::Client;
+use secrecy::{ExposeSecret, Secret};
 
 use crate::domain::SubscriberEmail;
 use crate::email_client::sendgrid::{Content, MailSendRequest, Personalization, Subscriber};
@@ -8,14 +9,20 @@ pub struct EmailClient {
     // TODO use reqwest::Url instead of String
     base_url: String,
     sender: SubscriberEmail,
+    authorization_token: Secret<String>,
 }
 
 impl EmailClient {
-    pub fn new(base_url: String, sender: SubscriberEmail) -> Self {
+    pub fn new(
+        base_url: String,
+        sender: SubscriberEmail,
+        authorization_token: Secret<String>,
+    ) -> Self {
         Self {
             http_client: Client::new(),
             base_url,
             sender,
+            authorization_token,
         }
     }
     pub async fn send_email(
@@ -54,7 +61,14 @@ impl EmailClient {
                 name: "zero2prod".to_string(),
             },
         };
-        let builder = self.http_client.post(&url).json(&request_body);
+        let builder = self
+            .http_client
+            .post(&url)
+            .header(
+                "Authorization",
+                "Bearer ".to_string() + self.authorization_token.expose_secret(),
+            )
+            .json(&request_body);
         Ok(())
     }
 }
@@ -95,7 +109,8 @@ mod tests {
     use crate::email_client::EmailClient;
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
-    use fake::Fake;
+    use fake::{Fake, Faker};
+    use secrecy::Secret;
     use wiremock::matchers::any;
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -103,7 +118,7 @@ mod tests {
     async fn send_email_fails_a_request_to_base_url() {
         let mock_server = MockServer::start().await;
         let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let email_client = EmailClient::new(mock_server.uri(), sender);
+        let email_client = EmailClient::new(mock_server.uri(), sender, Secret::new(Faker.fake()));
 
         Mock::given(any())
             .respond_with(ResponseTemplate::new(200))
