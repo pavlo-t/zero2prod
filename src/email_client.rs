@@ -112,7 +112,7 @@ mod tests {
     use fake::faker::name::en::Name;
     use fake::{Fake, Faker};
     use secrecy::Secret;
-    use wiremock::matchers::any;
+    use wiremock::matchers::{header, header_regex, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
@@ -121,7 +121,10 @@ mod tests {
         let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let email_client = EmailClient::new(mock_server.uri(), sender, Secret::new(Faker.fake()));
 
-        Mock::given(any())
+        Mock::given(header_regex("Authorization", "Bearer .*"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("v3/mail/send"))
+            .and(method("POST"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&mock_server)
