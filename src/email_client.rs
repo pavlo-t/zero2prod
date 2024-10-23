@@ -18,13 +18,18 @@ impl EmailClient {
         sender: SubscriberEmail,
         authorization_token: Secret<String>,
     ) -> Self {
+        let http_client = Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap();
+        let authorization_token =
+            Secret::new("Bearer ".to_string() + authorization_token.expose_secret());
+
         Self {
-            http_client: Client::new(),
+            http_client,
             base_url,
             sender,
-            authorization_token: Secret::new(
-                "Bearer ".to_string() + authorization_token.expose_secret(),
-            ),
+            authorization_token,
         }
     }
     pub async fn send_email(
@@ -192,6 +197,32 @@ mod tests {
 
         Mock::given(any())
             .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let name = SubscriberName::parse(Name().fake()).unwrap();
+        let new_subscriber = NewSubscriber { email, name };
+        let subject: String = Sentence(1..2).fake();
+        let content: String = Paragraph(1..10).fake();
+
+        let outcome = email_client
+            .send_email(new_subscriber, &subject, &content, &content)
+            .await;
+
+        assert_err!(outcome);
+    }
+
+    #[tokio::test]
+    async fn send_email_times_out_if_the_server_takes_too_long() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let email_client = EmailClient::new(mock_server.uri(), sender, Secret::new(Faker.fake()));
+
+        let response = ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(180));
+        Mock::given(any())
+            .respond_with(response)
             .expect(1)
             .mount(&mock_server)
             .await;
