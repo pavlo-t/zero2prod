@@ -22,7 +22,9 @@ impl EmailClient {
             http_client: Client::new(),
             base_url,
             sender,
-            authorization_token,
+            authorization_token: Secret::new(
+                "Bearer ".to_string() + authorization_token.expose_secret(),
+            ),
         }
     }
     pub async fn send_email(
@@ -36,36 +38,33 @@ impl EmailClient {
         let request_body = MailSendRequest {
             personalizations: vec![Personalization {
                 to: vec![Subscriber {
-                    email: new_subscriber.email.as_ref().to_owned(),
-                    name: new_subscriber.name.as_ref().to_owned(),
+                    email: new_subscriber.email.as_ref(),
+                    name: new_subscriber.name.as_ref(),
                 }],
-                subject: subject.to_string(),
+                subject,
             }],
             content: vec![
                 Content {
-                    r#type: "text/plain".to_string(),
-                    value: text_content.to_string(),
+                    r#type: "text/plain",
+                    value: text_content,
                 },
                 Content {
-                    r#type: "text/html".to_string(),
-                    value: html_content.to_string(),
+                    r#type: "text/html",
+                    value: html_content,
                 },
             ],
             from: Subscriber {
-                email: self.sender.as_ref().to_owned(),
-                name: "zero2prod".to_string(),
+                email: self.sender.as_ref(),
+                name: "zero2prod",
             },
             reply_to: Subscriber {
-                email: self.sender.as_ref().to_owned(),
-                name: "zero2prod".to_string(),
+                email: self.sender.as_ref(),
+                name: "zero2prod",
             },
         };
         self.http_client
             .post(&url)
-            .header(
-                "Authorization",
-                "Bearer ".to_string() + self.authorization_token.expose_secret(),
-            )
+            .header("Authorization", self.authorization_token.expose_secret())
             .json(&request_body)
             .send()
             .await?;
@@ -77,29 +76,29 @@ mod sendgrid {
     use serde::Serialize;
 
     #[derive(Serialize)]
-    pub struct MailSendRequest {
-        pub personalizations: Vec<Personalization>,
-        pub content: Vec<Content>,
-        pub from: Subscriber,
-        pub reply_to: Subscriber,
+    pub struct MailSendRequest<'a> {
+        pub personalizations: Vec<Personalization<'a>>,
+        pub content: Vec<Content<'a>>,
+        pub from: Subscriber<'a>,
+        pub reply_to: Subscriber<'a>,
     }
 
     #[derive(Serialize)]
-    pub struct Personalization {
-        pub to: Vec<Subscriber>,
-        pub subject: String,
+    pub struct Personalization<'a> {
+        pub to: Vec<Subscriber<'a>>,
+        pub subject: &'a str,
     }
 
     #[derive(Serialize)]
-    pub struct Subscriber {
-        pub email: String,
-        pub name: String,
+    pub struct Subscriber<'a> {
+        pub email: &'a str,
+        pub name: &'a str,
     }
 
     #[derive(Serialize)]
-    pub struct Content {
-        pub r#type: String,
-        pub value: String,
+    pub struct Content<'a> {
+        pub r#type: &'a str,
+        pub value: &'a str,
     }
 }
 
