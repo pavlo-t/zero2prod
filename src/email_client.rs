@@ -6,8 +6,7 @@ use crate::email_client::sendgrid::{Content, MailSendRequest, Personalization, S
 
 pub struct EmailClient {
     http_client: Client,
-    // TODO use reqwest::Url instead of String
-    base_url: String,
+    base_url: reqwest::Url,
     sender: SubscriberEmail,
     authorization_token: Secret<String>,
 }
@@ -22,6 +21,7 @@ impl EmailClient {
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap();
+        let base_url = base_url.parse().expect("Invalid base url");
         let authorization_token =
             Secret::new("Bearer ".to_string() + authorization_token.expose_secret());
 
@@ -39,7 +39,7 @@ impl EmailClient {
         html_content: &str,
         text_content: &str,
     ) -> Result<(), reqwest::Error> {
-        let url = format!("{}/v3/mail/send", self.base_url);
+        let url = self.base_url.join("/v3/mail/send").unwrap();
         let request_body = MailSendRequest {
             personalizations: vec![Personalization {
                 to: vec![Subscriber {
@@ -68,7 +68,7 @@ impl EmailClient {
             },
         };
         self.http_client
-            .post(&url)
+            .post(url)
             .header("Authorization", self.authorization_token.expose_secret())
             .json(&request_body)
             .send()
