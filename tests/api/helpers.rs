@@ -58,8 +58,18 @@ impl TestApp {
             confirmation_link
         };
 
-        let html = get_link(&body["content"][0]["value"].as_str().unwrap());
-        let plain_text = get_link(&body["content"][1]["value"].as_str().unwrap());
+        let content = body["content"].as_array().unwrap();
+        let content_value_with_type = |content_type: &str| {
+            content
+                .iter()
+                .find(|&v| v["type"].as_str().unwrap() == content_type)
+                .unwrap()["value"]
+                .as_str()
+                .unwrap()
+        };
+
+        let html = get_link(content_value_with_type("text/html"));
+        let plain_text = get_link(content_value_with_type("text/plain"));
 
         ConfirmationLinks { html, plain_text }
     }
