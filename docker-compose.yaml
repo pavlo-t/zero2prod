@@ -5,6 +5,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
+      APP_APPLICATION__BASE_URL: "http://localhost:8080"
       APP_DATABASE__USERNAME: postgres
       APP_DATABASE__PASSWORD: password
       APP_DATABASE__HOST: db
