@@ -125,7 +125,7 @@ async fn subscribe_fails_if_there_is_a_fatal_database_error() {
 
     sqlx::query!(
         // language=SQL
-        "ALTER TABLE subscription_tokens DROP COLUMN subscription_token;"
+        "ALTER TABLE subscriptions DROP COLUMN email;"
     )
     .execute(&app.db_pool)
     .await
