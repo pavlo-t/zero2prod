@@ -1,8 +1,7 @@
+use crate::domain::{SubscriberEmail, SubscriberName};
+use crate::email_client::sendgrid::{Content, MailSendRequest, Personalization, Subscriber};
 use reqwest::Client;
 use secrecy::{ExposeSecret, Secret};
-
-use crate::domain::{NewSubscriber, SubscriberEmail};
-use crate::email_client::sendgrid::{Content, MailSendRequest, Personalization, Subscriber};
 
 pub struct EmailClient {
     http_client: Client,
@@ -32,7 +31,8 @@ impl EmailClient {
     }
     pub async fn send_email(
         &self,
-        new_subscriber: NewSubscriber,
+        email: &SubscriberEmail,
+        name: &SubscriberName,
         subject: &str,
         html_content: &str,
         text_content: &str,
@@ -41,8 +41,8 @@ impl EmailClient {
         let request_body = MailSendRequest {
             personalizations: vec![Personalization {
                 to: vec![Subscriber {
-                    email: new_subscriber.email.as_ref(),
-                    name: new_subscriber.name.as_ref(),
+                    email: email.as_ref(),
+                    name: name.as_ref(),
                 }],
                 subject,
             }],
@@ -108,7 +108,7 @@ mod sendgrid {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+    use crate::domain::{SubscriberEmail, SubscriberName};
     use crate::email_client::EmailClient;
     use claims::{assert_err, assert_ok};
     use fake::faker::internet::en::SafeEmail;
@@ -151,7 +151,7 @@ mod tests {
             .await;
 
         let _ = email_client
-            .send_email(new_subscriber(), &subject(), &content(), &content())
+            .send_email(&email(), &name(), &subject(), &content(), &content())
             .await;
     }
 
@@ -167,7 +167,7 @@ mod tests {
             .await;
 
         let outcome = email_client
-            .send_email(new_subscriber(), &subject(), &content(), &content())
+            .send_email(&email(), &name(), &subject(), &content(), &content())
             .await;
 
         assert_ok!(outcome);
@@ -185,7 +185,7 @@ mod tests {
             .await;
 
         let outcome = email_client
-            .send_email(new_subscriber(), &subject(), &content(), &content())
+            .send_email(&email(), &name(), &subject(), &content(), &content())
             .await;
 
         assert_err!(outcome);
@@ -204,7 +204,7 @@ mod tests {
             .await;
 
         let outcome = email_client
-            .send_email(new_subscriber(), &subject(), &content(), &content())
+            .send_email(&email(), &name(), &subject(), &content(), &content())
             .await;
 
         assert_err!(outcome);
@@ -222,11 +222,8 @@ mod tests {
         SubscriberEmail::parse(SafeEmail().fake()).unwrap()
     }
 
-    fn new_subscriber() -> NewSubscriber {
-        NewSubscriber {
-            email: email(),
-            name: SubscriberName::parse(Name().fake()).unwrap(),
-        }
+    fn name() -> SubscriberName {
+        SubscriberName::parse(Name().fake()).unwrap()
     }
 
     fn email_client(base_url: String) -> EmailClient {

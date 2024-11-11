@@ -1,3 +1,6 @@
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::email_client::EmailClient;
+use crate::startup::ApplicationBaseUrl;
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpResponse, Responder, ResponseError};
 use anyhow::Context;
@@ -7,10 +10,6 @@ use rand::{thread_rng, Rng};
 use sqlx::types::{chrono, uuid};
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
-
-use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
-use crate::email_client::EmailClient;
-use crate::startup::ApplicationBaseUrl;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -181,10 +180,11 @@ pub async fn send_confirmation_email(
     );
     let html_body = format!(
         "Welcome to our newsletter!<br />\
-                Click <a href=\"{confirmation_link}\">here</a> to confirm your subscription."
+         Click <a href=\"{confirmation_link}\">here</a> to confirm your subscription."
     );
+    let NewSubscriber { email, name } = new_subscriber;
     email_client
-        .send_email(new_subscriber, "Welcome!", &html_body, &plain_body)
+        .send_email(&email, &name, "Welcome!", &html_body, &plain_body)
         .await
 }
 

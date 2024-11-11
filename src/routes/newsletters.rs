@@ -1,7 +1,9 @@
-use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
-use sqlx::PgPool;
-
+use crate::domain::{SubscriberEmail, SubscriberName};
+use crate::email_client::EmailClient;
 use crate::routes::error_chain_fmt;
+use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
+use anyhow::Context;
+use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
@@ -36,31 +38,70 @@ pub struct Content {
 }
 
 struct ConfirmedSubscriber {
-    email: String,
+    email: SubscriberEmail,
+    name: SubscriberName,
 }
 
 pub async fn publish_newsletter(
-    _body: web::Json<BodyData>,
+    body: web::Json<BodyData>,
     pool: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
 ) -> Result<HttpResponse, PublishError> {
-    let _subscribers = get_confirmed_subscribers(&pool).await?;
+    let subscribers = get_confirmed_subscribers(&pool).await?;
+    for subscriber in subscribers {
+        match subscriber {
+            Ok(subscriber) => {
+                email_client
+                    .send_email(
+                        &subscriber.email,
+                        &subscriber.name,
+                        &body.title,
+                        &body.content.html,
+                        &body.content.text,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Failed to send newsletter issue to {}", subscriber.email)
+                    })?;
+            }
+            Err(error) => {
+                tracing::warn!(
+                    error.cause_chain = ?error,
+                    "Skipping a confirmed subscriber. Their stored contact details are invalid"
+                );
+            }
+        }
+    }
     Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(name = "Get confirmed subscribers", skip(pool))]
 async fn get_confirmed_subscribers(
     pool: &PgPool,
-) -> Result<Vec<ConfirmedSubscriber>, anyhow::Error> {
-    let rows = sqlx::query_as!(
-        ConfirmedSubscriber,
+) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
+    let confirmed_subscribers = sqlx::query!(
         // language=SQL
         r#"
-        SELECT email
+        SELECT email, name
         FROM subscriptions
         WHERE status = 'confirmed'
         "#,
     )
     .fetch_all(pool)
-    .await?;
-    Ok(rows)
+    .await?
+    .into_iter()
+    .map(|r| {
+        let email = match SubscriberEmail::parse(r.email) {
+            Ok(email) => email,
+            Err(e) => return Err(anyhow::anyhow!(e)),
+        };
+        let name = match SubscriberName::parse(r.name) {
+            Ok(name) => name,
+            Err(e) => return Err(anyhow::anyhow!(e)),
+        };
+        Ok(ConfirmedSubscriber { email, name })
+    })
+    .collect();
+
+    Ok(confirmed_subscribers)
 }
