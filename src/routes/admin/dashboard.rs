@@ -1,5 +1,8 @@
 use crate::session_state::TypedSession;
-use actix_web::{http::header::ContentType, web, HttpResponse};
+use actix_web::{
+    http::header::{ContentType, LOCATION},
+    web, HttpResponse,
+};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -11,7 +14,9 @@ pub async fn admin_dashboard(
     let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
         get_username(user_id, &pool).await.map_err(e500)?
     } else {
-        todo!()
+        return Ok(HttpResponse::SeeOther()
+            .insert_header((LOCATION, "/login"))
+            .finish());
     };
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
