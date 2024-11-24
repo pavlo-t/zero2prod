@@ -27,3 +27,8 @@ services:
     volumes:
       - ./certificates/server.crt:/var/lib/postgresql/server.crt:ro
       - ./certificates/server.key:/var/lib/postgresql/server.key:ro
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
