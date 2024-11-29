@@ -1,3 +1,4 @@
+use crate::authentication::reject_anonymous_users;
 use crate::configuration::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
 use crate::routes::{
@@ -7,6 +8,7 @@ use crate::routes::{
 use actix_session::storage::RedisSessionStore;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
+use actix_web::middleware::from_fn;
 use actix_web::{
     dev::Server,
     web::{self, Data},
@@ -98,10 +100,14 @@ async fn run(
             ))
             .wrap(TracingLogger::default())
             .route("/", web::get().to(home))
-            .route("/admin/dashboard", web::get().to(admin_dashboard))
-            .route("/admin/logout", web::post().to(log_out))
-            .route("/admin/password", web::get().to(change_password_form))
-            .route("/admin/password", web::post().to(change_password))
+            .service(
+                web::scope("/admin")
+                    .wrap(from_fn(reject_anonymous_users))
+                    .route("/dashboard", web::get().to(admin_dashboard))
+                    .route("/logout", web::post().to(log_out))
+                    .route("/password", web::get().to(change_password_form))
+                    .route("/password", web::post().to(change_password)),
+            )
             .route("/health_check", web::get().to(health_check))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
