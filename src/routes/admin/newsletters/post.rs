@@ -1,24 +1,28 @@
+use crate::authentication::UserId;
 use crate::domain::{SubscriberEmail, SubscriberName};
 use crate::email_client::EmailClient;
-use crate::utils::e500;
+use crate::utils::{e500, see_other};
+use actix_web::web::ReqData;
 use actix_web::{web, HttpResponse};
+use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
-pub struct BodyData {
+pub struct FormData {
     title: String,
-    content_html: String,
-    content_text: String,
+    text_content: String,
+    html_content: String,
 }
 
 #[tracing::instrument(
     name = "Publish a newsletter issue",
-    skip(body, pool, email_client),
-    fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
+    skip(form, pool, email_client, user_id),
+    fields(user_id=%*user_id)
 )]
 pub async fn publish_newsletter(
-    body: web::Form<BodyData>,
+    form: web::Form<FormData>,
+    user_id: ReqData<UserId>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
 ) -> Result<HttpResponse, actix_web::Error> {
@@ -30,9 +34,9 @@ pub async fn publish_newsletter(
                     .send_email(
                         &subscriber.email,
                         &subscriber.name,
-                        &body.title,
-                        &body.content_html,
-                        &body.content_text,
+                        &form.title,
+                        &form.html_content,
+                        &form.text_content,
                     )
                     .await
                     .with_context(|| {
@@ -43,12 +47,14 @@ pub async fn publish_newsletter(
             Err(error) => {
                 tracing::warn!(
                     error.cause_chain = ?error,
+                    error.message = %error,
                     "Skipping a confirmed subscriber. Their stored contact details are invalid"
                 );
             }
         }
     }
-    Ok(HttpResponse::Ok().finish())
+    FlashMessage::info("The newsletter issue has been published!").send();
+    Ok(see_other("/admin/newsletters"))
 }
 
 struct ConfirmedSubscriber {

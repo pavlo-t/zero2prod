@@ -107,10 +107,10 @@ async fn run(
                     .wrap(from_fn(reject_anonymous_users))
                     .route("/dashboard", web::get().to(admin_dashboard))
                     .route("/logout", web::post().to(log_out))
-                    .route("/password", web::get().to(change_password_form))
-                    .route("/password", web::post().to(change_password))
                     .route("/newsletters", web::get().to(publish_newsletter_form))
-                    .route("/newsletters", web::post().to(publish_newsletter)),
+                    .route("/newsletters", web::post().to(publish_newsletter))
+                    .route("/password", web::get().to(change_password_form))
+                    .route("/password", web::post().to(change_password)),
             )
             .route("/health_check", web::get().to(health_check))
             .route("/login", web::get().to(login_form))

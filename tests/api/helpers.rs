@@ -59,12 +59,16 @@ impl TestApp {
         self.get_change_password().await.text().await.unwrap()
     }
 
-    pub async fn get_newsletters(&self) -> reqwest::Response {
+    pub async fn get_publish_newsletter(&self) -> reqwest::Response {
         self.api_client
             .get(&format!("{}/admin/newsletters", &self.address))
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub async fn get_publish_newsletter_html(&self) -> String {
+        self.get_publish_newsletter().await.text().await.unwrap()
     }
 
     pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
@@ -120,21 +124,16 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_newsletters<Body: serde::Serialize>(&self, body: &Body) -> reqwest::Response {
+    pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
         self.api_client
             .post(&format!("{}/admin/newsletters", &self.address))
             .form(&body)
             .send()
             .await
             .expect("Failed to execute request.")
-    }
-
-    pub async fn login_test_user(&self) -> reqwest::Response {
-        self.post_login(&serde_json::json!({
-            "username": &self.test_user.username,
-            "password": &self.test_user.password
-        }))
-        .await
     }
 
     pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
@@ -243,6 +242,14 @@ impl TestUser {
             username: Uuid::new_v4().to_string(),
             password: Uuid::new_v4().to_string(),
         }
+    }
+
+    pub async fn login(&self, app: &TestApp) {
+        app.post_login(&serde_json::json!({
+            "username": &self.username,
+            "password": &self.password
+        }))
+        .await;
     }
 
     async fn store(&self, pool: &PgPool) {

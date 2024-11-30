@@ -19,33 +19,35 @@ pub async fn publish_newsletter_form(
 <html lang="en">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <title>Publish a new issue</title>
+    <title>Publish Newsletter Issue</title>
 </head>
 <body>
     {msg_html}
     <form action="/admin/newsletters" method="post">
-        <label>Title
+        <label>Title:<br>
             <input
                 type="text"
-                placeholder="Enter title"
+                placeholder="Enter the issue title"
                 name="title"
             >
         </label>
         <br>
-        <label>Content html
-            <input
-                type="text"
-                placeholder="Enter html content"
-                name="content_html"
-            >
+        <label>Plain text content:<br>
+            <textarea
+                placeholder="Enter the content in plain text"
+                name="text_content"
+                rows="20"
+                cols="50"
+            ></textarea>
         </label>
         <br>
-        <label>Content text
-            <input
-                type="text"
-                placeholder="Enter text content"
-                name="content_text"
-            >
+        <label>HTML content:<br>
+            <textarea
+                placeholder="Enter the content in HTML format"
+                name="html_content"
+                rows="20"
+                cols="50"
+            ></textarea>
         </label>
         <br>
         <button type="submit">Publish</button>
