@@ -16,7 +16,6 @@ actix-web = "4"
 actix-web-flash-messages = { version = "0.5", features = ["cookies"] }
 anyhow = "1"
 argon2 = { version = "0.5", features = ["std"] }
-base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 config = "0.14"
 rand = { version = "0.8", features = ["std_rng"] }
@@ -58,5 +57,6 @@ quickcheck = "1"
 quickcheck_macros = "1"
 rand = "0.8"
 serde_json = "1"
+serde_urlencoded = "0.7.1"
 tokio = { version = "1", features = ["rt", "macros"] }
 wiremock = "0.6"
