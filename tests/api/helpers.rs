@@ -1,6 +1,7 @@
 use argon2::password_hash::SaltString;
 use zero2prod::issue_delivery_worker:: {try_execute_task, ExecutionOutcome};
 use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version};
+use argon2::password_hash::rand_core::OsRng;
 use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
@@ -269,7 +270,7 @@ impl TestUser {
     }
 
     async fn store(&self, pool: &PgPool) {
-        let salt = SaltString::generate(&mut rand::thread_rng());
+        let salt = SaltString::generate(&mut OsRng::default());
         let password_hash = Argon2::new(
             Algorithm::Argon2id,
             Version::V0x13,
